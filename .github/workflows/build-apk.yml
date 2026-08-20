@@ -3,6 +3,7 @@ name: Zbuduj APK
 on:
   push:
     branches: [main]
+    paths-ignore: ['README.md', 'LICENSE']
   workflow_dispatch:
 
 permissions:

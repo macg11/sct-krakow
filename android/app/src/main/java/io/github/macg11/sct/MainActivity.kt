@@ -1,4 +1,4 @@
-package pl.gralek.sct
+package io.github.macg11.sct
 
 import android.app.Activity
 import android.app.AlertDialog

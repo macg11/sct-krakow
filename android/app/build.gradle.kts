@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "pl.gralek.sct"
+    namespace = "io.github.macg11.sct"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "pl.gralek.sct"
+        applicationId = "io.github.macg11.sct"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

@@ -1,66 +1,68 @@
 # SCT Kraków — automat opłaty za wjazd
 
-Wypełnia całą ścieżkę na `sct.zdmk.krakow.pl` i **kończy na bramce płatniczej Autopay**,
-gdzie sam wybierasz BLIK / kartę / przelew i płacisz.
+Nieoficjalna aplikacja na Androida, która opłaca wjazd do Strefy Czystego Transportu
+w Krakowie **jednym dotknięciem**. Dane wpisujesz raz, przy pierwszym uruchomieniu.
 
-Co robi automat:
+> Projekt niezależny — nie jest powiązany z ZDMK ani Urzędem Miasta Krakowa.
+> Sam automat niczego nie płaci: kończy na bramce płatniczej, gdzie metodę
+> płatności wybierasz Ty.
 
-1. `#/payment/lookup` → wpisuje numer rejestracyjny (dwa razy) → DALEJ
-2. formularz opłaty → e-mail, tryb **OPŁATA GODZINOWA**, data wjazdu = **teraz + 5 min**,
-   okres **„Do końca dnia (5 zł)"** (z weryfikacją — pole potrafi nie przyjąć pierwszego wyboru) → DALEJ
-3. podsumowanie → sprawdza, czy kwota to 5 zł, wybiera **SZYBKA PŁATNOŚĆ**,
-   zaznacza akceptację regulaminu → **ZAPŁAĆ**
-4. stop — dalej Ty
+## Co robi
 
-Wymusza polską wersję językową serwisu (`localStorage: CloudCollector-sctClient-i18nextLng`),
-żeby etykiety były przewidywalne.
+Po dotknięciu ikony aplikacja otwiera `sct.zdmk.krakow.pl` w osadzonej przeglądarce i:
 
-## Pliki
+1. wpisuje numer rejestracyjny → **DALEJ**
+2. uzupełnia e-mail, wybiera **opłatę godzinową**, ustawia datę wjazdu na **teraz + N minut**
+   i okres **„Do końca dnia (5 zł)"** → **DALEJ**
+3. sprawdza, czy kwota to 5 zł, zaznacza **szybką płatność** i akceptację regulaminu → **ZAPŁAĆ**
+4. zatrzymuje się na bramce Autopay — wybierasz BLIK, kartę albo przelew i płacisz
 
-| plik | co to |
-|---|---|
-| `autofill.js` | cała logika; konfiguracja przez `window.SCT_CFG` |
-| `bookmarklet.txt` | ten sam skrypt jako zakładka — działa od ręki, bez kompilacji |
-| `android/` | projekt Android Studio: WebView + wstrzyknięcie skryptu |
+Na koniec czyta komunikat na głos („wybierz metodę płatności"), więc nie trzeba patrzeć na ekran.
 
-## Wariant A — bookmarklet (najszybszy, 2 minuty)
+**Ważne:** w domyślnych ustawieniach aplikacja zaznacza za Ciebie akceptację regulaminu
+płatności ZDMK i klika ZAPŁAĆ. Regulamin warto przeczytać samodzielnie; automatyczne
+zatwierdzanie wyłączysz w ustawieniach (opcja „sam klikaj ZAPŁAĆ").
 
-Działa w przeglądarkach na Androidzie obsługujących zakładki ze słowem kluczowym
-(Firefox, Kiwi, Lemur). W Chrome na Androida `javascript:` z paska adresu jest zablokowane.
+## Instalacja
 
-1. Skopiuj całą zawartość `bookmarklet.txt`.
-2. Firefox → dowolna strona → zakładki → dodaj zakładkę.
-3. Adres: wklejona treść. Słowo kluczowe: `sct`.
-4. Odtąd wpisujesz `sct` w pasku adresu i zatwierdzasz.
+Pobierz `sct-krakow.apk` z [Releases](../../releases/tag/apk) i zainstaluj —
+Android poprosi o zgodę na instalację z nieznanego źródła.
 
-Dane (tablica, e-mail, offset) są zaszyte w pierwszej linijce zakładki — edytujesz je wprost w zakładce.
+Przy pierwszym starcie podajesz numer rejestracyjny, e-mail, liczbę minut do wjazdu
+oraz to, czy aplikacja ma sama zatwierdzać płatność i czytać komunikaty. Później zmienisz
+to przytrzymując pasek statusu na dole ekranu.
 
-## Wariant B — aplikacja Android
+Aplikacja nie wysyła danych nigdzie poza serwis ZDMK — numer rejestracyjny i e-mail
+zostają w pamięci telefonu.
 
-Na tym Macu nie ma JDK ani Android SDK, więc APK **nie jest zbudowany** — projekt jest gotowy do otwarcia.
-
-1. Zainstaluj Android Studio (dociągnie JDK 17 i SDK 34).
-2. `File → Open` → katalog `android/`. Przy pierwszym syncu Studio dogra Gradle wrapper.
-3. `Run` na podpiętym telefonie, albo `Build → Build APK(s)`.
-
-Z terminala, gdy masz już JDK 17 + SDK:
+## Wariant bez instalacji: bookmarklet
 
 ```bash
-cd /Users/studio/Documents/SCENOPISAPP/sct-auto/android && ./gradlew assembleDebug
+node make-bookmarklet.js KR12345 adres@example.com 5 > bookmarklet.txt
 ```
 
-APK ląduje w `android/app/build/outputs/apk/debug/`.
+Treść pliku zapisz jako adres zakładki w Firefoksie na Androidzie i nadaj jej słowo
+kluczowe, np. `sct`. Wpisanie `sct` w pasku adresu uruchamia ten sam automat.
+W Chromie na Androida to nie zadziała — `javascript:` z paska adresu jest tam zablokowane.
 
-W apce: pasek statusu na dole pokazuje postęp, **Wypełnij od nowa** restartuje proces,
-**Ustawienia** zmieniają tablicę, e-mail, liczbę minut i to, czy apka sama klika ZAPŁAĆ
-(wyłącz, jeśli wolisz najpierw obejrzeć podsumowanie).
+## Budowanie
 
-WebView przepuszcza `intent://` i schematy aplikacji bankowych, więc BLIK i aplikacje banków
-otworzą się normalnie na etapie płatności.
+APK powstaje w GitHub Actions (`.github/workflows/build-apk.yml`) i trafia do release’u `apk`.
+Lokalnie, z JDK 17 i Android SDK:
 
-## Uwagi
+```bash
+cd android && ./gradlew assembleDebug
+```
 
-- Zgłoszenie powstaje w systemie ZDMK dopiero po kliknięciu DALEJ na formularzu; nieopłacone po prostu wygasa.
-- Skrypt zatrzymuje się i wypisuje ostrzeżenie, jeśli kwota na podsumowaniu ≠ 5 zł.
-- Jeśli ZDMK przebuduje formularz, najpewniej pęknie wybór „Okres" — selektory oparte są
-  na `name="registrationNumber"`, `name="email"`, `placeholder="DD.MM.RRRR GG:mm"` i tekstach przycisków.
+## Gdy przestanie działać
+
+Automat opiera się na strukturze formularza ZDMK: `name="registrationNumber"`, `name="email"`,
+`placeholder="DD.MM.RRRR GG:mm"` oraz tekstach przycisków. Po przebudowie serwisu najpewniej
+pęknie wybór pola „Okres" — cała logika siedzi w [`autofill.js`](autofill.js).
+
+Aplikacja wymusza polską wersję językową serwisu
+(`localStorage['CloudCollector-sctClient-i18nextLng'] = 'pl'`), żeby etykiety były przewidywalne.
+
+## Licencja
+
+MIT
