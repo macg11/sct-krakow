@@ -22,7 +22,10 @@
     try { console.log('[SCT] ' + m); } catch (e) {}
     try { if (window.SCTBridge) SCTBridge.status(m); } catch (e) {}
   }
-  function fail(m) { window.__sctRunning = false; log('⚠ ' + m); }
+  function fail(m) { window.__sctRunning = false; log('⚠ ' + m); say('Automat się zatrzymał. Dokończ ręcznie.'); }
+
+  /* komunikat głosowy — w aucie nie trzeba patrzeć na ekran */
+  function say(m) { try { if (window.SCTBridge && SCTBridge.say) SCTBridge.say(m); } catch (e) {} }
 
   /* wpis do pola kontrolowanego przez Reacta */
   function setValue(el, v) {
@@ -172,11 +175,16 @@
         if (!box.checked) box.click();
 
         setTimeout(function () {
-          if (!AUTOPAY) { window.__sctRunning = false; return log('gotowe — kliknij ZAPŁAĆ.'); }
+          if (!AUTOPAY) {
+            window.__sctRunning = false;
+            say('Formularz gotowy. Zatwierdź płatność.');
+            return log('gotowe — kliknij ZAPŁAĆ.');
+          }
           var pay = btn(/^ZAPŁAĆ|^PAY/i);
           if (!pay || pay.disabled) return fail('ZAPŁAĆ niedostępny — dokończ ręcznie');
           pay.click();
           window.__sctRunning = false;
+          say('Opłata pięć złotych do końca dnia. Wybierz metodę płatności.');
           log('przekazuję do bramki — wybierz bank / BLIK i zapłać.');
         }, 400);
       }, 400);

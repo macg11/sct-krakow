@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
+import java.util.Locale
 import android.text.InputType
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
@@ -26,12 +28,14 @@ class MainActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var prefs: android.content.SharedPreferences
     private var script: String = ""
+    private var tts: TextToSpeech? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         prefs = getSharedPreferences("sct", Context.MODE_PRIVATE)
+        tts = TextToSpeech(this) { st -> if (st == TextToSpeech.SUCCESS) tts?.language = Locale("pl", "PL") }
         script = assets.open("autofill.js").bufferedReader().use { it.readText() }
 
         web = findViewById(R.id.web)
@@ -114,6 +118,18 @@ class MainActivity : Activity() {
     inner class Bridge {
         @JavascriptInterface
         fun status(m: String) = setStatus(m)
+
+        /** czytane na głos tylko kluczowe momenty: koniec przebiegu i błąd */
+        @JavascriptInterface
+        fun say(m: String) {
+            if (!prefs.getBoolean("speak", true)) return
+            runOnUiThread { tts?.speak(m, TextToSpeech.QUEUE_FLUSH, null, "sct") }
+        }
+    }
+
+    override fun onDestroy() {
+        tts?.shutdown()
+        super.onDestroy()
     }
 
     private fun showSettings() {
@@ -139,7 +155,11 @@ class MainActivity : Activity() {
             text = "sam klikaj ZAPŁAĆ (do bramki)"
             isChecked = prefs.getBoolean("autoPay", true)
         }
-        listOf(plate, email, offset, autoPay).forEach { box.addView(it) }
+        val speak = CheckBox(this).apply {
+            text = "czytaj komunikaty na głos"
+            isChecked = prefs.getBoolean("speak", true)
+        }
+        listOf(plate, email, offset, autoPay, speak).forEach { box.addView(it) }
 
         AlertDialog.Builder(this)
             .setTitle("Ustawienia")
@@ -150,6 +170,7 @@ class MainActivity : Activity() {
                     .putString("email", email.text.toString().trim())
                     .putInt("offset", offset.text.toString().toIntOrNull() ?: 5)
                     .putBoolean("autoPay", autoPay.isChecked)
+                    .putBoolean("speak", speak.isChecked)
                     .apply()
                 restart()
             }
