@@ -17,6 +17,10 @@ Po dotknięciu ikony aplikacja otwiera `sct.zdmk.krakow.pl` w osadzonej przeglą
 3. sprawdza, czy kwota to 5 zł, zaznacza **szybką płatność** i akceptację regulaminu → **ZAPŁAĆ**
 4. zatrzymuje się na bramce Autopay — wybierasz BLIK, kartę albo przelew i płacisz
 
+Jeśli ZDMK zgłosi, że na wybrany okres istnieje już płatność, automat **zatrzymuje się
+i ostrzega** zamiast klikać „TAK, ZAPŁAĆ MIMO TO" — decyzja o drugiej opłacie za ten sam
+wjazd należy do kierowcy.
+
 Na koniec czyta komunikat na głos („wybierz metodę płatności"), więc nie trzeba patrzeć na ekran.
 
 **Ważne:** w domyślnych ustawieniach aplikacja zaznacza za Ciebie akceptację regulaminu
@@ -54,11 +58,22 @@ Lokalnie, z JDK 17 i Android SDK:
 cd android && ./gradlew assembleDebug
 ```
 
+## Jak to działa w środku
+
+Dwie rzeczy w serwisie ZDMK wymagają obejścia i warto o nich wiedzieć przed grzebaniem w kodzie:
+
+- **Data wjazdu na ekranie dotykowym.** MUI renderuje wtedy mobilną wersję pickera, w której
+  pole jest `readonly` i wpis tekstowy nie działa. Automat otwiera okno pickera, przełącza je
+  na wpisywanie tekstem (przycisk `aria-label` zawierający „text input"), wpisuje datę
+  i zatwierdza. Na desktopie pole przyjmuje wartość wprost.
+- **Lista „Okres".** Pierwszy wybór potrafi nie trafić do stanu formularza, bo pole „Liczba dni"
+  pojawia się dopiero po wyborze. Skrypt sprawdza wartość i w razie potrzeby powtarza.
+
 ## Gdy przestanie działać
 
 Automat opiera się na strukturze formularza ZDMK: `name="registrationNumber"`, `name="email"`,
 `placeholder="DD.MM.RRRR GG:mm"` oraz tekstach przycisków. Po przebudowie serwisu najpewniej
-pęknie wybór pola „Okres" — cała logika siedzi w [`autofill.js`](autofill.js).
+pęknie wybór pola „Okres" albo obsługa pickera daty — cała logika siedzi w [`autofill.js`](autofill.js).
 
 Aplikacja wymusza polską wersję językową serwisu
 (`localStorage['CloudCollector-sctClient-i18nextLng'] = 'pl'`), żeby etykiety były przewidywalne.
