@@ -92,15 +92,52 @@
       var hourly = btn(/godzinow|hourly/i);
       if (hourly && !/contained/.test(hourly.className)) hourly.click();
 
-      setTimeout(function () {
-        var date = document.querySelector('input[placeholder*="RRRR"], input[placeholder*="YYYY"]');
-        if (!date) return fail('brak pola daty wjazdu');
-        var s = stamp();
-        setValue(date, s);
-        date.blur();
-        log('wjazd: ' + s);
-        setTimeout(function () { pickPeriod(1); }, 400);
-      }, 300);
+      setTimeout(function () { setDate(function () { pickPeriod(1); }); }, 300);
+    });
+  }
+
+  /* Data wjazdu. Na desktopie pole przyjmuje wpis wprost; na ekranie dotykowym
+     MUI renderuje wersję mobilną z polem tylko do odczytu i wartość da się podać
+     wyłącznie w oknie pickera, po przełączeniu go na wpisywanie tekstem. */
+  function setDate(cb) {
+    var date = document.querySelector('input[placeholder*="RRRR"], input[placeholder*="YYYY"]');
+    if (!date) return fail('brak pola daty wjazdu');
+    var s = stamp();
+
+    if (!date.readOnly) {
+      setValue(date, s);
+      date.blur();
+      log('wjazd: ' + s);
+      return setTimeout(cb, 400);
+    }
+
+    date.click();
+    waitFor('okna wyboru daty', function () {
+      var d = document.querySelector('[role="dialog"]');
+      return d && [].slice.call(d.querySelectorAll('button')).filter(function (b) {
+        return /text input|tekst/i.test(b.getAttribute('aria-label') || '');
+      })[0];
+    }, function (sw) {
+      sw.click();
+      waitFor('pola tekstowego w oknie', function () {
+        var d = document.querySelector('[role="dialog"]');
+        return d && [].slice.call(d.querySelectorAll('input')).filter(function (i) { return !i.readOnly; })[0];
+      }, function (inp) {
+        setValue(inp, s);
+        setTimeout(function () {
+          var ok = [].slice.call(document.querySelectorAll('[role="dialog"] button')).filter(function (b) {
+            return /^(ZATWIERDŹ|OK|ZAPISZ)$/i.test((b.innerText || '').trim());
+          })[0];
+          if (!ok || ok.disabled) return fail('nie mogę zatwierdzić daty — ustaw ją ręcznie');
+          ok.click();
+          setTimeout(function () {
+            var f = document.querySelector('input[placeholder*="RRRR"], input[placeholder*="YYYY"]');
+            if (!f || !f.value) return fail('data nie została ustawiona — ustaw ją ręcznie');
+            log('wjazd: ' + f.value);
+            cb();
+          }, 700);
+        }, 500);
+      });
     });
   }
 
@@ -141,6 +178,16 @@
     next.click();
     setTimeout(function () {
       if (/summary/.test(location.href)) return step3();
+
+      /* ZDMK wykrył istniejącą płatność na ten okres — nie klikamy "ZAPŁAĆ MIMO TO",
+         bo to druga opłata za to samo. Decyzja należy do kierowcy. */
+      if (/conflicts/.test(location.href)) {
+        window.__sctRunning = false;
+        var okres = (document.body.innerText.match(/\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}\s*→\s*\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}/) || [''])[0];
+        log('masz już płatność na ten okres' + (okres ? ': ' + okres : '') + ' — zdecyduj sam');
+        say('Uwaga. Na ten okres jest już płatność. Sprawdź, zanim zapłacisz drugi raz.');
+        return;
+      }
       var err = document.querySelector('form .Mui-error, form .MuiFormHelperText-root');
       var msg = err ? err.innerText : '';
       if (/Okres|niezbędne/i.test(msg) || !document.querySelector('form .MuiFormHelperText-root')) {
